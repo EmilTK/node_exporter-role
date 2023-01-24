@@ -1,0 +1,3 @@
+---
+- import_tasks: precheck.yaml
+- include_tasks: install_node_exporter.yaml

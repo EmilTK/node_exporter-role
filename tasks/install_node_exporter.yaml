@@ -1,0 +1,87 @@
+- name: "Create a directory {{ ne_bin_path }} if it does not exist"
+  ansible.builtin.file:
+    path: "{{ ne_bin_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+- name: Check current node_exporter version.
+  command: "{{ ne_bin_path }}/node_exporter --version"
+  failed_when: false
+  changed_when: false
+  register: ne_check_version
+  tags:
+  - check
+- name: Create node_exporter user
+  become: true
+  user:
+    name: node_exporter
+    shell: /sbin/nologin
+    state: present
+
+- name: Install, configure and start node_exporter
+  block:
+  - name: "Download node_exporter and unarchive into /tmp"
+    ansible.builtin.unarchive:
+      remote_src: true
+      src: "https://github.com/prometheus/node_exporter/releases/download/v{{ ne_version }}/node_exporter-{{ ne_version }}.linux-{{ ne_arch }}.tar.gz"
+      dest: "/tmp"
+  - name: "Copy binary file node_exporter to {{ ne_bin_path }}"
+    ansible.builtin.copy:
+      remote_src: true
+      src: "/tmp/node_exporter-{{ ne_version }}.linux-{{ ne_arch }}/node_exporter"
+      dest: "{{ ne_bin_path }}"
+      owner: root
+      group: root
+      mode: 01755
+  - name: "Create a directory {{ cert_path }} if it does not exist"
+    ansible.builtin.file:
+      path: "{{ cert_path }}"
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+  - name: "Copy the web.yaml to {{ ne_bin_path }}"
+    ansible.builtin.template:
+      src: web.yaml.j2
+      dest: "{{ ne_bin_path }}/web.yaml"
+  - name: Copy the node_exporter systemd unit file
+    ansible.builtin.template:
+      src: node_exporter.service.j2
+      dest: /etc/systemd/system/node_exporter.service
+      owner: root
+      group: root
+      mode: 0644
+    register: ne_service
+  - name: Reload systemd daemon if unit file is changed
+    ansible.builtin.systemd:
+      daemon_reload: true
+    notify: restart node_exporter
+    when: ne_service is changed
+  - name: Enabling and run node_exporter service
+    ansible.builtin.service:
+      name: node_exporter
+      state: started
+      enabled: true
+  when: >
+    ne_check_version.stdout is not defined 
+    or ne_version not in ne_check_version.stdout
+
+- name: "Copy certificate files to {{ cert_path }}"
+  ansible.builtin.copy:
+    src: '{{ item }}'
+    dest: '{{ cert_path }}'
+  loop:
+    - node_exporter.crt
+    - node_exporter.key        
+
+- name: Verify node_exporter is responding to requests
+  ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}:{{ne_port}}/"
+    return_content: true
+    ca_path: "{{ cert_path }}/node_exporter.crt"
+    force_basic_auth: true
+    url_username: "{{ prometheus_user }}"
+    url_password: "{{ prometheus_password }}"
+  register: metrics_output
+  failed_when: "'Metrics' not in metrics_output.content"

@@ -1,0 +1,11 @@
+[Unit]
+Description=NodeExporter
+After=network.target
+
+[Service]
+TimeoutStartSec=0
+User=node_exporter
+ExecStart={{ ne_bin_path }}/node_exporter --web.config.file={{ ne_bin_path }}/web.yaml
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+---
+# Use the latest node_exporter release
+ne_version: 1.5.0
+
+# System architecture
+ne_arch: amd64
+
+# Node_exporter port
+ne_port: 9100
+# Node_exporter binary file path
+ne_bin_path: /opt/node_exporter
+# Node_exporter certificates path
+cert_path: "{{ ne_bin_path }}/certs"
+
+# prometheus user and password for Basic Auth
+prometheus_user: prometheus
+prometheus_password: ""
+# htpasswd -nBC 10 "" | tr -d ':\n'
+prometheus_password_hash: ""
+

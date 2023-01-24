@@ -1,0 +1,19 @@
+- name: Check files directory exists
+  file:
+    name: files/
+    state: directory
+  run_once: true
+  delegate_to: localhost
+- name: Check csr file exists
+  file:
+    name: files/node_exporter.csr
+    state: file
+  run_once: true
+  delegate_to: localhost
+- name: Create cert and key
+  openssl_certificate:
+    path: files/node_exporter.crt
+    csr_path: files/node_exporter.csr
+    privatekey_path: files/node_exporter.key
+    provider: selfsigned
+  delegate_to: localhost
