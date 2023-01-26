@@ -74,6 +74,7 @@
   loop:
     - node_exporter.crt
     - node_exporter.key        
+  notify: restart node_exporter
 
 - name: Verify node_exporter is responding to requests
   ansible.builtin.uri:
